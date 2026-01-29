@@ -1,3 +1,18 @@
 {
- 
+    "levels": [
+        {
+            "levelNumber": 1,
+            "axisPosition": {
+                "x": 360,
+                "y": 1000
+            },
+            "enemies": [
+                {
+                    "x": 360,
+                    "y": 300,
+                    "hp": 90
+                }
+            ]
+        }
+    ]
 }

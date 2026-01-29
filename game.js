@@ -37,8 +37,14 @@ const config = {
     type: Phaser.WEBGL,
     parent: 'game-container',
     transparent: true,
-    scene: [GameName, WinScene],
-
+    scene: [MainGameScene, EditorScene, WinScene],
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
+    },
     roundPixels: true,
     antialias: true,
 

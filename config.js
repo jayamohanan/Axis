@@ -1,6 +1,46 @@
 // Shared config for dimensions and layout
 var CONFIG = {
-   
+    // Game dimensions (portrait mode)
+    GAME_WIDTH: 720,
+    GAME_HEIGHT: 1280,
+
+    // Rotation mechanics
+    ROTATION_RADIUS: 120,       // Distance from axis to ball
+    ROTATION_SPEED: 5,          // Angular speed in radians per second
+    
+    // Combat
+    BALL_DAMAGE: 10,            // Damage dealt by ball to enemies
+    
+    // Ball properties
+    BALL_RADIUS: 15,            // Visual size of ball
+    BALL_COLOR: 0x4a90e2,       // Blue color for ball
+    
+    // Trail properties
+    TRAIL_LENGTH: 15,           // Number of trail points
+    TRAIL_COLOR: 0x4a90e2,      // Trail color (same as ball)
+    TRAIL_MIN_ALPHA: 0.1,       // Minimum transparency at trail end
+    TRAIL_MAX_ALPHA: 0.8,       // Maximum transparency at trail start
+    
+    // Axis properties
+    AXIS_RADIUS: 10,            // Visual size of center axis
+    AXIS_COLOR: 0x333333,       // Dark gray for axis
+    
+    // Enemy properties
+    ENEMY_RADIUS: 30,           // Visual size of enemy
+    ENEMY_COLOR: 0xff0000,      // Red color for enemy
+    ENEMY_HP: 90,               // Starting HP for enemies
+    
+    // Rope/line properties
+    ROPE_COLOR: 0xffffff,       // White color for rope
+    ROPE_WIDTH: 2,              // Line thickness
+    
+    // Physics
+    BALL_VELOCITY_MULTIPLIER: 300,  // Speed when ball is released
+
+    // Debug settings
+    DEBUG_BOUNDARY: true,       // Show portrait boundary and rotation area
+    ROTATION_AREA_COLOR: 0xffa756,  // Light cyan for rotation area
+    ROTATION_AREA_ALPHA: 0.15,      // Transparency of rotation area
 
     FONT_FAMILY: 'Arial',
     TEXT_COLOR: '#333333',
