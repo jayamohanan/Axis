@@ -8,12 +8,26 @@ var CONFIG = {
     ROTATION_RADIUS: 120,       // Distance from axis to ball
     ROTATION_SPEED: 5,          // Angular speed in radians per second
     
-    // Combat
-    BALL_DAMAGE: 10,            // Damage dealt by ball to enemies
+    // Combat System
+    PLAYER_START_DAMAGE: 100,   // Player's starting damage
+    ENEMY_START_HP: 500,        // First enemy's HP
+    ATTACK_INTERVAL: 2000,      // Attack every 2000ms (2 seconds)
+    ATTACK_DISTANCE: 20,        // How far player moves during attack animation
+    ATTACK_DURATION: 50,        // Attack animation duration in ms (fast punch)
+    
+    // Supply Ball Damage by Level (1-20)
+    SUPPLY_BALL_DAMAGE: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200],
+    
+    // Enemy HP by Level (1-20)
+    ENEMY_HP_BY_LEVEL: [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000],
+    
+    // Enemy Colors for variety
+    ENEMY_COLORS: [0xff0000, 0xff4500, 0xff6347, 0xff7f50, 0xffa500, 0xffb347, 0xffc04d, 0xffd700, 0xffdf00, 0xffed4e, 0x32cd32, 0x00fa9a, 0x00ced1, 0x1e90ff, 0x4169e1, 0x8a2be2, 0x9370db, 0xba55d3, 0xff1493, 0xff69b4],
     
     // Ball properties
-    BALL_RADIUS: 15,            // Visual size of ball
-    BALL_COLOR: 0x4a90e2,       // Blue color for ball
+    BALL_RADIUS: 30,            // Visual size of fighter/enemy balls
+    PLAYER_COLOR: 0x4a90e2,     // Blue for player
+    BALL_COLOR: 0x4a90e2,       // Blue color for supply balls (rotating)
     
     // Trail properties
     TRAIL_LENGTH: 15,           // Number of trail points
@@ -25,10 +39,8 @@ var CONFIG = {
     AXIS_RADIUS: 10,            // Visual size of center axis
     AXIS_COLOR: 0x333333,       // Dark gray for axis
     
-    // Enemy properties
-    ENEMY_RADIUS: 30,           // Visual size of enemy
-    ENEMY_COLOR: 0xff0000,      // Red color for enemy
-    ENEMY_HP: 90,               // Starting HP for enemies
+    // Supply ball properties
+    SUPPLY_BALL_RADIUS: 15,     // Visual size of rotating supply ball
     
     // Rope/line properties
     ROPE_COLOR: 0xffffff,       // White color for rope
@@ -45,31 +57,5 @@ var CONFIG = {
     FONT_FAMILY: 'Arial',
     TEXT_COLOR: '#333333',
     
-   
-   
-    RESET_PROGRESS : false,         // Set to true to clear saved progress on load
-    
-    // Color palette (kept for potential future use)
-    SASHA_PALETTE: [
-        { name: 'Red', hex: '#e6194b', tint: '#fad1da' },
-        { name: 'Green', hex: '#3cb44b', tint: '#d8f0db' },
-        { name: 'Blue', hex: '#4363d8', tint: '#d9e0f7' },
-        { name: 'Orange', hex: '#f58231', tint: '#fde6d6' },
-        { name: 'Purple', hex: '#911eb4', tint: '#e9d2f0' },
-        { name: 'Teal', hex: '#469990', tint: '#daebe9' },
-        { name: 'Olive', hex: '#808000', tint: '#e6e6cc' },
-        { name: 'Magenta', hex: '#f032e6', tint: '#fcd6f6' },
-        { name: 'Pink', hex: '#fabed4', tint: '#fef2f6' },
-        { name: 'Lavender', hex: '#dcbeff', tint: '#f8f2ff' },
-        { name: 'Beige', hex: '#fffac8', tint: '#fffef4' },
-        { name: 'Maroon', hex: '#800000', tint: '#e6cccc' },
-        { name: 'Mint', hex: '#aaffc3', tint: '#eefff3' },
-        { name: 'Apricot', hex: '#ffd8b1', tint: '#fff7ef' },
-        { name: 'Navy', hex: '#000075', tint: '#ccccdf' },
-        { name: 'Grey', hex: '#a9a9a9', tint: '#eeeeee' },
-        { name: 'Brown', hex: '#9a6324', tint: '#ebe0d3' },
-        { name: 'Yellow', hex: '#ffe119', tint: '#fff9d1' },
-        { name: 'Cyan', hex: '#42d4f4', tint: '#d9f6fd' },
-        { name: 'Lime', hex: '#bfef45', tint: '#f2fccd' }
-    ]
+    RESET_PROGRESS : false         // Set to true to clear saved progress on load
 };

@@ -1,4 +1,4 @@
-// MainGameScene.js - Core gameplay with rotating ball and enemies
+// MainGameScene.js - Combat system with player vs enemy
 class MainGameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainGameScene' });
@@ -7,6 +7,14 @@ class MainGameScene extends Phaser.Scene {
     init(data) {
         this.currentLevelIndex = data.levelIndex || 0;
         this.levelsData = null;
+        
+        // Combat system
+        this.currentEnemyLevel = 1;  // Start at enemy level 1
+        this.playerDamage = CONFIG.PLAYER_START_DAMAGE;
+        this.lastAttackTime = 0;
+        
+        // Supply ball damage level
+        this.currentSupplyLevel = 1;
     }
 
     preload() {
@@ -30,7 +38,6 @@ class MainGameScene extends Phaser.Scene {
         
         if (!this.currentLevel) {
             console.log('All levels completed!');
-            // Could show a completion screen here
             return;
         }
 
@@ -56,10 +63,21 @@ class MainGameScene extends Phaser.Scene {
         editorBtn.on('pointerdown', () => {
             this.scene.start('EditorScene');
         });
+        
+        // Display current stats
+        this.statsText = this.add.text(20, 20, '', {
+            fontFamily: CONFIG.FONT_FAMILY,
+            fontSize: '18px',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 }
+        });
+        this.updateStatsDisplay();
     }
 
     setupLevel() {
         const level = this.currentLevel;
+        const { width, height } = this.sys.game.canvas;
         
         // Store axis position and rotation parameters
         this.axisX = level.axisPosition.x;
@@ -81,17 +99,62 @@ class MainGameScene extends Phaser.Scene {
         // Create rope line
         this.rope = this.add.graphics();
         
-        // Create rotating ball
-        this.createBall();
+        // Create rotating supply ball
+        this.createSupplyBall();
         
-        // Create enemies
-        this.enemies = [];
-        level.enemies.forEach(enemyData => {
-            this.createEnemy(enemyData.x, enemyData.y, enemyData.hp);
-        });
+        // Create player and enemy fighters just above center horizontal line
+        const fighterY = height * 0.45;  // 45% from top (just above center)
         
-        // Track released balls
+        // Player on left side
+        const playerX = width * 0.3;
+        this.createPlayer(playerX, fighterY);
+        
+        // Enemy on right side
+        const enemyX = width * 0.7;
+        this.createEnemy(enemyX, fighterY);
+        
+        // Track released supply balls
         this.releasedBalls = [];
+    }
+    
+    updateStatsDisplay() {
+        this.statsText.setText(`Player DMG: ${this.playerDamage}\nSupply LVL: ${this.currentSupplyLevel}\nEnemy LVL: ${this.currentEnemyLevel}`);
+    }
+    
+    createPlayer(x, y) {
+        this.player = this.add.circle(x, y, CONFIG.BALL_RADIUS, CONFIG.PLAYER_COLOR);
+        this.player.originalX = x;
+        this.player.originalY = y;
+        
+        // Add player damage text
+        this.player.damageText = this.add.text(x, y + CONFIG.BALL_RADIUS + 15, `DMG: ${this.playerDamage}`, {
+            fontFamily: CONFIG.FONT_FAMILY,
+            fontSize: '20px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.player.damageText.setOrigin(0.5, 0.5);
+    }
+    
+    createEnemy(x, y) {
+        // Get enemy HP based on current level
+        const enemyHP = CONFIG.ENEMY_HP_BY_LEVEL[Math.min(this.currentEnemyLevel - 1, 19)];
+        const enemyColor = CONFIG.ENEMY_COLORS[Math.min(this.currentEnemyLevel - 1, 19)];
+        
+        this.enemy = this.add.circle(x, y, CONFIG.BALL_RADIUS, enemyColor);
+        this.enemy.originalX = x;
+        this.enemy.originalY = y;
+        this.enemy.hp = enemyHP;
+        this.enemy.maxHp = enemyHP;
+        
+        // Add HP text
+        this.enemy.hpText = this.add.text(x, y + CONFIG.BALL_RADIUS + 15, `HP: ${enemyHP}`, {
+            fontFamily: CONFIG.FONT_FAMILY,
+            fontSize: '20px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+        this.enemy.hpText.setOrigin(0.5, 0.5);
     }
 
     drawDebugBoundaries() {
@@ -107,7 +170,7 @@ class MainGameScene extends Phaser.Scene {
         debugGraphics.strokeRect(0, 0, width, height);
     }
 
-    createBall() {
+    createSupplyBall() {
         // Calculate initial position
         const ballX = this.axisX + Math.cos(this.currentAngle) * this.rotationRadius;
         const ballY = this.axisY + Math.sin(this.currentAngle) * this.rotationRadius;
@@ -115,55 +178,167 @@ class MainGameScene extends Phaser.Scene {
         // Initialize trail graphics first (so it's behind the ball)
         const trailGraphics = this.add.graphics();
         
-        // Create ball
-        this.ball = this.add.circle(ballX, ballY, CONFIG.BALL_RADIUS, CONFIG.BALL_COLOR);
-        this.physics.add.existing(this.ball);
-        this.ball.body.setCircle(CONFIG.BALL_RADIUS);
-        // Don't collide with world bounds - ball will pass through
-        this.ball.body.setCollideWorldBounds(false);
+        // Create supply ball (smaller, rotating ball)
+        this.supplyBall = this.add.circle(ballX, ballY, CONFIG.SUPPLY_BALL_RADIUS, CONFIG.BALL_COLOR);
+        this.physics.add.existing(this.supplyBall);
+        this.supplyBall.body.setCircle(CONFIG.SUPPLY_BALL_RADIUS);
+        this.supplyBall.body.setCollideWorldBounds(false);
         
         // Ball is rotating, not released yet
-        this.ball.isReleased = false;
+        this.supplyBall.isReleased = false;
         
-        // Initialize trail for this ball
-        this.ball.trail = [];
-        this.ball.trailGraphics = trailGraphics;
+        // Initialize trail
+        this.supplyBall.trail = [];
+        this.supplyBall.trailGraphics = trailGraphics;
     }
-
-    createEnemy(x, y, hp) {
-        const enemy = this.add.circle(x, y, CONFIG.ENEMY_RADIUS, CONFIG.ENEMY_COLOR);
-        this.physics.add.existing(enemy, true); // true = static body
-        enemy.body.setCircle(CONFIG.ENEMY_RADIUS);
-        
-        // Store HP
-        enemy.hp = hp;
-        enemy.maxHp = hp;
-        
-        // Add HP text
-        enemy.hpText = this.add.text(x, y, hp.toString(), {
-            fontFamily: CONFIG.FONT_FAMILY,
-            fontSize: '24px',
-            color: '#ffffff',
-            fontStyle: 'bold'
+    
+    performAttack() {
+        // Player attack animation - move right then back
+        this.tweens.add({
+            targets: this.player,
+            x: this.player.originalX + CONFIG.ATTACK_DISTANCE,
+            duration: CONFIG.ATTACK_DURATION,
+            ease: 'Power2',
+            yoyo: true,
+            onStart: () => {
+                // Damage the enemy
+                this.enemy.hp = Math.max(0, this.enemy.hp - this.playerDamage);
+                this.enemy.hpText.setText(`HP: ${this.enemy.hp}`);
+                
+                // Flash and shake effect on enemy
+                this.tweens.add({
+                    targets: this.enemy,
+                    alpha: 0.3,
+                    scaleX: 1.2,
+                    scaleY: 1.2,
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 1
+                });
+                
+                // Create damage particles
+                this.createDamageEffect(this.enemy.x, this.enemy.y);
+                
+                // Check if enemy is dead
+                if (this.enemy.hp <= 0) {
+                    this.time.delayedCall(300, () => {
+                        this.enemyDefeated();
+                    });
+                }
+            }
         });
-        enemy.hpText.setOrigin(0.5, 0.5);
         
-        this.enemies.push(enemy);
+        // Update damage text position
+        this.tweens.add({
+            targets: this.player.damageText,
+            x: this.player.originalX + CONFIG.ATTACK_DISTANCE,
+            duration: CONFIG.ATTACK_DURATION,
+            ease: 'Power2',
+            yoyo: true
+        });
+    }
+    
+    createDamageEffect(x, y) {
+        // Create simple particle effect for damage
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const particle = this.add.circle(x, y, 5, 0xffff00);
+            
+            this.tweens.add({
+                targets: particle,
+                x: x + Math.cos(angle) * 40,
+                y: y + Math.sin(angle) * 40,
+                alpha: 0,
+                duration: 400,
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
+    }
+    
+    enemyDefeated() {
+        // Explosion effect
+        this.tweens.add({
+            targets: this.enemy,
+            scaleX: 2,
+            scaleY: 2,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => {
+                this.enemy.destroy();
+                this.enemy.hpText.destroy();
+                
+                // White flash effect
+                this.createWhiteFlash();
+                
+                // Spawn next enemy after flash
+                this.time.delayedCall(500, () => {
+                    this.currentEnemyLevel++;
+                    
+                    // Check if we've completed all 20 enemy levels
+                    if (this.currentEnemyLevel > 20) {
+                        this.allEnemiesDefeated();
+                    } else {
+                        this.createEnemy(this.enemy.originalX || this.sys.game.canvas.width * 0.7, 
+                                       this.player.originalY);
+                        this.updateStatsDisplay();
+                    }
+                });
+            }
+        });
+    }
+    
+    createWhiteFlash() {
+        const { width, height } = this.sys.game.canvas;
+        const flash = this.add.rectangle(0, 0, width, height, 0xffffff);
+        flash.setOrigin(0, 0);
+        flash.setAlpha(0);
+        
+        // Flash in and out
+        this.tweens.add({
+            targets: flash,
+            alpha: 0.8,
+            duration: 200,
+            yoyo: true,
+            onComplete: () => {
+                flash.destroy();
+            }
+        });
+    }
+    
+    allEnemiesDefeated() {
+        const { width, height } = this.sys.game.canvas;
+        const winText = this.add.text(width / 2, height / 2, 'ALL ENEMIES DEFEATED!\nYOU WIN!', {
+            fontFamily: CONFIG.FONT_FAMILY,
+            fontSize: '48px',
+            color: '#ffffff',
+            backgroundColor: '#4CAF50',
+            padding: { x: 30, y: 15 },
+            align: 'center'
+        });
+        winText.setOrigin(0.5, 0.5);
     }
 
     update(time, delta) {
-        // Update rotation angle
-        if (this.ball && !this.ball.isReleased) {
+        // Auto-attack system - attack every second
+        if (this.enemy && this.enemy.active !== false && time - this.lastAttackTime >= CONFIG.ATTACK_INTERVAL) {
+            this.lastAttackTime = time;
+            this.performAttack();
+        }
+        
+        // Update rotation angle for supply ball
+        if (this.supplyBall && !this.supplyBall.isReleased) {
             this.currentAngle += this.rotationSpeed * (delta / 1000);
             
             // Calculate new position
             const ballX = this.axisX + Math.cos(this.currentAngle) * this.rotationRadius;
             const ballY = this.axisY + Math.sin(this.currentAngle) * this.rotationRadius;
             
-            this.ball.setPosition(ballX, ballY);
+            this.supplyBall.setPosition(ballX, ballY);
             
             // Update trail for rotating ball
-            this.updateTrail(this.ball);
+            this.updateTrail(this.supplyBall);
             
             // Draw rope
             this.rope.clear();
@@ -178,8 +353,8 @@ class MainGameScene extends Phaser.Scene {
             }
         });
         
-        // Check collisions for released balls
-        this.releasedBalls.forEach((releasedBall, index) => {
+        // Check collisions for released supply balls
+        this.releasedBalls.forEach((releasedBall) => {
             if (!releasedBall.active) {
                 return;
             }
@@ -189,55 +364,49 @@ class MainGameScene extends Phaser.Scene {
             if (releasedBall.x < 0 || releasedBall.x > width || 
                 releasedBall.y < 0 || releasedBall.y > height) {
                 this.destroyBallWithTrail(releasedBall);
-                this.checkSpawnNewBall();
+                this.checkSpawnNewSupplyBall();
                 return;
             }
             
-            // Check collision with enemies
-            this.enemies.forEach((enemy, enemyIndex) => {
-                if (enemy.active && this.checkCollision(releasedBall, enemy)) {
-                    // Deal damage
-                    enemy.hp -= CONFIG.BALL_DAMAGE;
-                    enemy.hpText.setText(Math.max(0, enemy.hp).toString());
-                    
-                    // Flash enemy
-                    this.tweens.add({
-                        targets: enemy,
-                        alpha: 0.3,
-                        duration: 100,
-                        yoyo: true,
-                        repeat: 1
-                    });
-                    
-                    // Destroy ball on hit
-                    this.destroyBallWithTrail(releasedBall);
-                    this.checkSpawnNewBall();
-                    
-                    // Check if enemy is dead
-                    if (enemy.hp <= 0) {
-                        this.destroyEnemy(enemy, enemyIndex);
-                    }
-                }
-            });
+            // Check collision with player
+            if (this.player && this.checkCollision(releasedBall, this.player, CONFIG.SUPPLY_BALL_RADIUS, CONFIG.BALL_RADIUS)) {
+                // Add damage to player
+                const damageGain = CONFIG.SUPPLY_BALL_DAMAGE[Math.min(this.currentSupplyLevel - 1, 19)];
+                this.playerDamage += damageGain;
+                this.player.damageText.setText(`DMG: ${this.playerDamage}`);
+                
+                // Flash player
+                this.tweens.add({
+                    targets: this.player,
+                    alpha: 0.5,
+                    scaleX: 1.3,
+                    scaleY: 1.3,
+                    duration: 150,
+                    yoyo: true
+                });
+                
+                // Level up supply ball
+                this.currentSupplyLevel = Math.min(this.currentSupplyLevel + 1, 20);
+                this.updateStatsDisplay();
+                
+                // Destroy supply ball on hit
+                this.destroyBallWithTrail(releasedBall);
+                this.checkSpawnNewSupplyBall();
+            }
         });
         
         // Remove destroyed balls from array
         this.releasedBalls = this.releasedBalls.filter(ball => ball.active);
-        
-        // Check win condition
-        if (this.enemies.length === 0 || this.enemies.every(e => !e.active)) {
-            this.levelComplete();
-        }
     }
 
-    checkCollision(ball, enemy) {
-        if (!ball.active || !enemy.active) return false;
+    checkCollision(ball1, ball2, radius1, radius2) {
+        if (!ball1.active || !ball2) return false;
         
-        const dx = ball.x - enemy.x;
-        const dy = ball.y - enemy.y;
+        const dx = ball1.x - ball2.x;
+        const dy = ball1.y - ball2.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        return distance < (CONFIG.BALL_RADIUS + CONFIG.ENEMY_RADIUS);
+        return distance < (radius1 + radius2);
     }
 
     updateTrail(ball) {
@@ -260,7 +429,7 @@ class MainGameScene extends Phaser.Scene {
             
             // Calculate size and alpha based on position in trail
             const progress = i / (ball.trail.length - 1);
-            const radius = CONFIG.BALL_RADIUS * progress;
+            const radius = CONFIG.SUPPLY_BALL_RADIUS * progress;
             const alpha = CONFIG.TRAIL_MIN_ALPHA + (CONFIG.TRAIL_MAX_ALPHA - CONFIG.TRAIL_MIN_ALPHA) * progress;
             
             // Draw line segment
@@ -276,29 +445,9 @@ class MainGameScene extends Phaser.Scene {
         ball.destroy();
     }
 
-    destroyEnemy(enemy, index) {
-        // Explosion effect
-        this.tweens.add({
-            targets: enemy,
-            scaleX: 1.5,
-            scaleY: 1.5,
-            alpha: 0,
-            duration: 300,
-            onComplete: () => {
-                enemy.destroy();
-                if (enemy.hpText) {
-                    enemy.hpText.destroy();
-                }
-            }
-        });
-        
-        // Mark as inactive
-        enemy.active = false;
-    }
-
-    checkSpawnNewBall() {
+    checkSpawnNewSupplyBall() {
         // Only spawn new ball if there's no ball currently rotating
-        if (!this.ball && this.pendingReleaseAngle !== undefined) {
+        if (!this.supplyBall && this.pendingReleaseAngle !== undefined) {
             // Clear any old trail graphics
             if (this.oldBallTrailGraphics) {
                 this.oldBallTrailGraphics.destroy();
@@ -306,13 +455,13 @@ class MainGameScene extends Phaser.Scene {
             }
             
             this.currentAngle = this.pendingReleaseAngle;
-            this.createBall();
+            this.createSupplyBall();
             this.pendingReleaseAngle = undefined;
         }
     }
 
     releaseBall() {
-        if (!this.ball || this.ball.isReleased) {
+        if (!this.supplyBall || this.supplyBall.isReleased) {
             return;
         }
         
@@ -320,20 +469,18 @@ class MainGameScene extends Phaser.Scene {
         const releaseAngle = this.currentAngle;
         
         // Calculate tangential velocity based on physics: v = ω × r
-        // Where ω (omega) = angular velocity, r = radius
         const tangentialSpeed = this.rotationSpeed * this.rotationRadius;
         
         // Calculate tangential velocity direction (perpendicular to radius)
-        // For counter-clockwise rotation, tangent vector is (-sin(θ), cos(θ))
         const velocityX = -Math.sin(this.currentAngle) * tangentialSpeed;
         const velocityY = Math.cos(this.currentAngle) * tangentialSpeed;
         
         // Set velocity
-        this.ball.body.setVelocity(velocityX, velocityY);
-        this.ball.isReleased = true;
+        this.supplyBall.body.setVelocity(velocityX, velocityY);
+        this.supplyBall.isReleased = true;
         
         // Add to released balls array for collision tracking
-        this.releasedBalls.push(this.ball);
+        this.releasedBalls.push(this.supplyBall);
         
         // Clear rope
         this.rope.clear();
@@ -342,41 +489,6 @@ class MainGameScene extends Phaser.Scene {
         this.pendingReleaseAngle = releaseAngle;
         
         // Remove reference to current ball
-        this.ball = null;
-    }
-
-    levelComplete() {
-        // Prevent multiple triggers
-        if (this.isCompleting) return;
-        this.isCompleting = true;
-        
-        // Show win message
-        const { width, height } = this.sys.game.canvas;
-        const winText = this.add.text(width / 2, height / 2, 'LEVEL COMPLETE!', {
-            fontFamily: CONFIG.FONT_FAMILY,
-            fontSize: '48px',
-            color: '#ffffff',
-            backgroundColor: '#4a90e2',
-            padding: { x: 30, y: 15 }
-        });
-        winText.setOrigin(0.5, 0.5);
-        
-        // Wait and go to next level
-        this.time.delayedCall(2000, () => {
-            this.currentLevelIndex++;
-            if (this.currentLevelIndex < this.levelsData.levels.length) {
-                this.scene.restart({ levelIndex: this.currentLevelIndex });
-            } else {
-                // All levels complete
-                const allCompleteText = this.add.text(width / 2, height / 2 + 100, 'ALL LEVELS COMPLETE!', {
-                    fontFamily: CONFIG.FONT_FAMILY,
-                    fontSize: '36px',
-                    color: '#ffffff',
-                    backgroundColor: '#4CAF50',
-                    padding: { x: 20, y: 10 }
-                });
-                allCompleteText.setOrigin(0.5, 0.5);
-            }
-        });
+        this.supplyBall = null;
     }
 }
